@@ -1,0 +1,159 @@
+import { loadState, saveState, defaultState } from './modules/store.js';
+import { initRouter } from './modules/router.js';
+import { initTodo } from './modules/todo.js';
+import { initWeather } from './modules/weather.js';
+import { initPrivacy } from './modules/privacy.js';
+
+const state = loadState();
+
+function renderClock() {
+  const clockTime = document.getElementById('clockTime');
+  const clockDate = document.getElementById('clockDate');
+  const now = new Date();
+
+  const time = now.toLocaleTimeString('ja-JP', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+
+  const date = now.toLocaleDateString('ja-JP', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    weekday: 'short'
+  });
+
+  if (clockTime) clockTime.textContent = time;
+  if (clockDate) clockDate.textContent = date;
+
+  const hourDeg = (now.getHours() % 12) * 30 + now.getMinutes() * 0.5;
+  const minuteDeg = now.getMinutes() * 6 + now.getSeconds() * 0.1;
+  const secondDeg = now.getSeconds() * 6;
+
+  const hourHand = document.querySelector('.analog-clock .hour');
+  const minuteHand = document.querySelector('.analog-clock .minute');
+  const secondHand = document.querySelector('.analog-clock .second');
+
+  if (hourHand) hourHand.style.transform = `translate(-50%, -100%) rotate(${hourDeg}deg)`;
+  if (minuteHand) minuteHand.style.transform = `translate(-50%, -100%) rotate(${minuteDeg}deg)`;
+  if (secondHand) secondHand.style.transform = `translate(-50%, -100%) rotate(${secondDeg}deg)`;
+}
+
+function bindCommandPalette() {
+  const commandPanel = document.getElementById('commandPanel');
+  const commandInput = document.getElementById('commandInput');
+  const commandList = document.getElementById('commandList');
+  const commandButton = document.getElementById('commandButton');
+  const features = [
+    { label: 'Overview', target: 'overview' },
+    { label: 'Weather', target: 'weather' },
+    { label: 'Todos', target: 'todos' },
+    { label: 'Assistant', target: 'assistant' },
+    { label: 'Privacy', target: 'privacy' },
+    { label: 'System', target: 'system' }
+  ];
+
+  function renderCommands(filter = '') {
+    const query = filter.trim().toLowerCase();
+    const items = features.filter(item => item.label.toLowerCase().includes(query));
+
+    commandList.innerHTML = '';
+
+    if (!items.length) {
+      commandList.innerHTML = '<li class="command-empty">No feature found.</li>';
+      return;
+    }
+
+    items.forEach(item => {
+      const li = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = item.label;
+      button.addEventListener('click', () => {
+        state.app.currentFeature = item.target;
+        saveState(state);
+        window.dispatchEvent(new CustomEvent('nexus:navigate', { detail: item.target }));
+        commandPanel.classList.add('hidden');
+      });
+      li.appendChild(button);
+      commandList.appendChild(li);
+    });
+  }
+
+  commandButton.addEventListener('click', () => {
+    commandPanel.classList.remove('hidden');
+    commandInput.value = '';
+    renderCommands();
+    setTimeout(() => commandInput.focus(), 10);
+  });
+
+  document.querySelectorAll('[data-close="commandPanel"]').forEach(button => {
+    button.addEventListener('click', () => commandPanel.classList.add('hidden'));
+  });
+
+  commandInput.addEventListener('input', (event) => renderCommands(event.target.value));
+  document.addEventListener('keydown', (event) => {
+    if ((event.key === '/' || (event.ctrlKey && event.key.toLowerCase() === 'k')) && !event.metaKey) {
+      event.preventDefault();
+      commandPanel.classList.remove('hidden');
+      commandInput.focus();
+    }
+
+    if (event.key === 'Escape' && !commandPanel.classList.contains('hidden')) {
+      commandPanel.classList.add('hidden');
+    }
+  });
+
+  renderCommands();
+}
+
+function bindPrivacyDialog() {
+  const privacyButton = document.getElementById('privacyButton');
+  const privacyPanel = document.getElementById('privacyPanel');
+
+  privacyButton.addEventListener('click', () => privacyPanel.classList.remove('hidden'));
+  document.querySelectorAll('[data-close="privacyPanel"]').forEach(button => {
+    button.addEventListener('click', () => privacyPanel.classList.add('hidden'));
+  });
+}
+
+function setup() {
+  renderClock();
+  setInterval(renderClock, 1000);
+
+  initRouter(state);
+  initTodo(state);
+  initWeather(state);
+  initPrivacy(state);
+  bindCommandPalette();
+  bindPrivacyDialog();
+
+  const storageStatus = document.getElementById('storageStatus');
+  if (storageStatus) {
+    try {
+      const usage = (JSON.stringify(localStorage).length / 1024).toFixed(1);
+      storageStatus.textContent = `${usage} KB`;
+    } catch {
+      storageStatus.textContent = 'blocked';
+    }
+  }
+
+  document.getElementById('sidebarOpen').addEventListener('click', () => {
+    document.body.classList.remove('sidebar-collapsed');
+  });
+
+  document.getElementById('sidebarToggle').addEventListener('click', () => {
+    document.body.classList.add('sidebar-collapsed');
+  });
+}
+
+setup();
+window.addEventListener('nexus:navigate', (event) => {
+  const target = event.detail || 'overview';
+  const stateKey = 'nexus_app_platform_state_v1';
+  const current = JSON.parse(localStorage.getItem(stateKey) || JSON.stringify(defaultState));
+  current.app.currentFeature = target;
+  localStorage.setItem(stateKey, JSON.stringify(current));
+});

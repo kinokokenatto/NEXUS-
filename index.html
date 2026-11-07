@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=()" />
+    <title>NEXUS App Platform</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar" aria-label="NEXUS navigation">
+        <div class="brand-row">
+          <div class="brand-mark">◈</div>
+          <div class="brand-label">
+            <strong>NEXUS</strong>
+            <small>App Platform</small>
+          </div>
+          <button class="icon-button sidebar-close" id="sidebarToggle" aria-label="サイドバーを閉じる">‹</button>
+        </div>
+
+        <div class="profile-card">
+          <div class="avatar">N</div>
+          <div>
+            <b>NEXUS Workspace</b>
+            <small>Local control panel</small>
+          </div>
+          <span class="live-dot" aria-hidden="true"></span>
+        </div>
+
+        <nav class="nav-group" id="navGroup" aria-label="Main navigation">
+          <button class="nav-item is-active" data-target="overview" type="button">⌂ Overview</button>
+          <button class="nav-item" data-target="weather" type="button">🌤 Weather</button>
+          <button class="nav-item" data-target="todos" type="button">☑ Todos</button>
+          <button class="nav-item" data-target="assistant" type="button">✦ Assistant</button>
+          <button class="nav-item" data-target="privacy" type="button">🛡 Privacy</button>
+          <button class="nav-item" data-target="system" type="button">▣ System</button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="status-pill">Core: local</div>
+          <small>NEXUS SUPER5 platform</small>
+        </div>
+      </aside>
+
+      <div class="main-column">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button" id="sidebarOpen" aria-label="サイドバーを開く">☰</button>
+            <div class="title-block">
+              <span class="eyebrow">NEXUS PLATFORM</span>
+              <h1>Unified control center</h1>
+            </div>
+          </div>
+
+          <div class="topbar-actions">
+            <button class="ghost-button" id="commandButton" type="button">⌘ Command</button>
+            <button class="ghost-button" id="privacyButton" type="button">🔒 Privacy</button>
+          </div>
+        </header>
+
+        <main class="workspace" id="workspace">
+          <section class="panel panel-feature" data-feature="overview" aria-labelledby="overview-title">
+            <div class="hero-grid">
+              <div class="clock-card">
+                <div class="time-row">
+                  <div class="analog-wrap" aria-label="Analog clock">
+                    <div class="analog-clock">
+                      <span class="hand hour"></span>
+                      <span class="hand minute"></span>
+                      <span class="hand second"></span>
+                      <span class="center-dot"></span>
+                    </div>
+                  </div>
+                  <div class="digital-wrap">
+                    <div id="clockDate" class="clock-date">--</div>
+                    <div id="clockTime" class="clock-time">--:--:--</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="summary-card">
+                <div class="summary-header">
+                  <span>System status</span>
+                  <span class="pill success">stable</span>
+                </div>
+                <ul class="summary-list">
+                  <li><span>Local storage</span><strong id="storageStatus">ready</strong></li>
+                  <li><span>Privacy mode</span><strong id="privacyStatusText">default</strong></li>
+                  <li><span>Feature count</span><strong>6 modules</strong></li>
+                  <li><span>Design mode</span><strong>platform</strong></li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel panel-feature" data-feature="weather" aria-labelledby="weather-title" hidden>
+            <div class="panel-head">
+              <h2 id="weather-title">🌤 Weather</h2>
+              <button class="mini-button" id="weatherRefresh" type="button">Refresh</button>
+            </div>
+            <div class="weather-layout">
+              <label class="field-label" for="weatherCity">City</label>
+              <div class="inline-row">
+                <select id="weatherCity" aria-label="Select a city">
+                  <option value="tokyo">Tokyo</option>
+                  <option value="osaka">Osaka</option>
+                  <option value="kyoto">Kyoto</option>
+                  <option value="sapporo">Sapporo</option>
+                  <option value="fukuoka">Fukuoka</option>
+                </select>
+              </div>
+            </div>
+            <div id="weatherSummary" class="weather-summary">Loading weather…</div>
+            <p id="weatherNote" class="supporting-text">Fetching is blocked unless explicit network access is allowed.</p>
+          </section>
+
+          <section class="panel panel-feature" data-feature="todos" aria-labelledby="todo-title" hidden>
+            <div class="panel-head">
+              <h2 id="todo-title">☑ Todo</h2>
+              <span id="todoSummary" class="pill neutral">0/0</span>
+            </div>
+            <form id="todoForm" class="todo-form">
+              <input id="todoInput" type="text" maxlength="120" placeholder="Add a task" aria-label="Add a task" />
+              <button type="submit">Add</button>
+            </form>
+            <ul id="todoList" class="todo-list" aria-live="polite"></ul>
+          </section>
+
+          <section class="panel panel-feature" data-feature="assistant" aria-labelledby="assistant-title" hidden>
+            <div class="panel-head">
+              <h2 id="assistant-title">✦ NEXUS Assistant</h2>
+            </div>
+            <div class="assistant-box">
+              <div class="assistant-bubble" id="assistantReply">Welcome. Ask for weather, todo, planning, or quick actions.</div>
+              <form id="assistantForm" class="assistant-form">
+                <input id="assistantInput" type="text" maxlength="300" placeholder="Type a command or question" aria-label="Ask NEXUS Assistant" />
+                <button type="submit">Run</button>
+              </form>
+              <div class="quick-actions">
+                <button type="button" data-quick="weather">Weather</button>
+                <button type="button" data-quick="todos">Todos</button>
+                <button type="button" data-quick="privacy">Privacy</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel panel-feature" data-feature="privacy" aria-labelledby="privacy-title" hidden>
+            <div class="panel-head">
+              <h2 id="privacy-title">🛡 Privacy & Security</h2>
+            </div>
+
+            <label class="toggle-row">
+              <input type="checkbox" id="autoNetworkToggle" />
+              <span>
+                <strong>Allow automatic external network fetches</strong>
+                <small>Only when you explicitly permit it.</small>
+              </span>
+            </label>
+
+            <label class="toggle-row">
+              <input type="checkbox" id="screenProtectToggle" />
+              <span>
+                <strong>Screen protection</strong>
+                <small>Show a privacy overlay when the page loses focus.</small>
+              </span>
+            </label>
+
+            <label class="toggle-row">
+              <input type="checkbox" id="anonModeToggle" />
+              <span>
+                <strong>Anonymous communication mode</strong>
+                <small>Block external requests and keep tracking attempts low.</small>
+              </span>
+            </label>
+
+            <div id="privacyAudit" class="audit-box">Checks: local-only storage, explicit permission gates, and network isolation are active.</div>
+          </section>
+
+          <section class="panel panel-feature" data-feature="system" aria-labelledby="system-title" hidden>
+            <div class="panel-head">
+              <h2 id="system-title">▣ System Registry</h2>
+            </div>
+            <div class="info-grid">
+              <article class="info-card">
+                <span>Platform</span>
+                <strong>NEXUS App Platform</strong>
+              </article>
+              <article class="info-card">
+                <span>State storage</span>
+                <strong>localStorage</strong>
+              </article>
+              <article class="info-card">
+                <span>Security</span>
+                <strong>feature-gated</strong>
+              </article>
+              <article class="info-card">
+                <span>Maintenance</span>
+                <strong>modular JS</strong>
+              </article>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <div id="screenProtectOverlay" class="screen-protect hidden" aria-live="polite" aria-modal="true">
+      <div class="screen-protect-card">
+        <div class="screen-protect-icon">🔒</div>
+        <h2>Screen protection active</h2>
+        <p>Privacy mode is protecting the current screen. Click to unlock.</p>
+      </div>
+    </div>
+
+    <div id="commandPanel" class="modal hidden" aria-modal="true" role="dialog" aria-label="Command palette">
+      <div class="modal-card command-card">
+        <div class="modal-head">
+          <h2>⌘ Command palette</h2>
+          <button type="button" class="mini-button close-button" data-close="commandPanel">Close</button>
+        </div>
+        <input id="commandInput" type="text" placeholder="Search feature…" aria-label="Search feature" />
+        <ul id="commandList" class="command-list"></ul>
+      </div>
+    </div>
+
+    <div id="privacyPanel" class="modal hidden" aria-modal="true" role="dialog" aria-label="Privacy panel">
+      <div class="modal-card">
+        <div class="modal-head">
+          <h2>Privacy panel</h2>
+          <button type="button" class="mini-button close-button" data-close="privacyPanel">Close</button>
+        </div>
+        <div class="policy-box">
+          <p>Local-only design by default. External calls are disabled unless you actively allow them.</p>
+          <p>State is stored in browser localStorage and can be reset from the platform control.</p>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
