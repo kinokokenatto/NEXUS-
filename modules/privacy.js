@@ -1,85 +1,55 @@
 import { saveState } from './store.js';
 
-const cityCenters = {
-  tokyo: { lat: 35.6762, lon: 139.6503 },
-  osaka: { lat: 34.6937, lon: 135.5023 },
-  kyoto: { lat: 35.0214, lon: 135.7556 },
-  sapporo: { lat: 43.0618, lon: 141.3545 },
-  fukuoka: { lat: 33.5904, lon: 130.4017 }
-};
+const ALLOWED_ORIGINS = new Set(['https://api.open-meteo.com']);
 
-const weatherIcons = {
-  0: '☀️ Clear',
-  1: '🌤 Mostly clear',
-  2: '⛅ Partly cloudy',
-  3: '☁️ Cloudy',
-  45: '🌫 Fog',
-  48: '🌫 Fog',
-  51: '🌦 Light drizzle',
-  61: '🌧 Rain',
-  71: '🌨 Snow',
-  80: '🌧 Rain showers',
-  95: '⛈ Thunderstorm'
-};
-
-function localWeather(city) {
-  const map = {
-    tokyo: { temp: 23, condition: '☀️ Clear sky', note: 'Warm and stable. Local-only mode is active.' },
-    osaka: { temp: 25, condition: '🌤 Clear to fair', note: 'Comfortable afternoon conditions.' },
-    kyoto: { temp: 22, condition: '⛅ Calm weather', note: 'A relaxed, mild city rhythm.' },
-    sapporo: { temp: 17, condition: '🌦 Mild shower', note: 'Cooler than the main island cities.' },
-    fukuoka: { temp: 27, condition: '☀️ Sunny', note: 'Warm and bright daylight.' }
-  };
-
-  return map[city] || map.tokyo;
-}
-
-async function fetchWeather(city, summaryNode, noteNode) {
-  const coords = cityCenters[city] || cityCenters.tokyo;
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,weather_code&timezone=auto`;
-
+export async function requestAllowedJson(input, { timeoutMs = 8000 } = {}) {
+  const url = new URL(input);
+  if (!ALLOWED_ORIGINS.has(url.origin) || url.protocol !== 'https:') throw new Error('Network destination is not allowed.');
+  const state = window.nexusState;
+  if (!state?.privacy?.autoNetwork || state.privacy.anonMode) throw new Error('External requests are disabled by privacy settings.');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(url, { headers: { Accept: 'application/json' } });
-    if (!response.ok) throw new Error('Weather service rejected the request');
-    const data = await response.json();
-    const temp = data.current?.temperature_2m ?? '--';
-    const code = Number(data.current?.weather_code ?? 0);
-    const condition = weatherIcons[code] || '🌤 Condition';
-
-    summaryNode.textContent = `${temp}°C · ${condition}`;
-    noteNode.textContent = `${city.toUpperCase()} · retrieved via explicit external access.`;
-  } catch (error) {
-    const fallback = localWeather(city);
-    summaryNode.textContent = `${fallback.temp}°C · ${fallback.condition}`;
-    noteNode.textContent = `${fallback.note} · fetch blocked or unavailable.`;
+    const response = await fetch(url.href, { method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', redirect: 'error', referrerPolicy: 'no-referrer', headers: { Accept: 'application/json' }, signal: controller.signal });
+    if (!response.ok) throw new Error(`Request failed (${response.status}).`);
+    return await response.json();
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-export function initWeather(state) {
-  const select = document.getElementById('weatherCity');
-  const summary = document.getElementById('weatherSummary');
-  const note = document.getElementById('weatherNote');
-  const refreshButton = document.getElementById('weatherRefresh');
+export function initPrivacy(state) {
+  window.nexusState = state;
+  const autoNetwork = document.getElementById('autoNetworkToggle');
+  const screenProtect = document.getElementById('screenProtectToggle');
+  const anonMode = document.getElementById('anonModeToggle');
+  const overlay = document.getElementById('screenProtectOverlay');
+  const audit = document.getElementById('privacyAudit');
+  const status = document.getElementById('privacyStatusText');
+  let wasAway = false;
 
-  if (!select || !summary || !note) return;
-
-  const updateWeather = async () => {
-    const city = select.value || state.weather.city || 'tokyo';
-    state.weather.city = city;
+  function render() {
+    autoNetwork.checked = state.privacy.autoNetwork;
+    screenProtect.checked = state.privacy.screenProtect;
+    anonMode.checked = state.privacy.anonMode;
+    if (status) status.textContent = state.privacy.anonMode ? '外部通信ブロック' : state.privacy.autoNetwork ? '天気通信を許可' : 'ローカル優先';
+    if (audit) audit.textContent = `天気通信: ${state.privacy.autoNetwork && !state.privacy.anonMode ? '許可（更新操作時のみ）' : '停止'} · 画面保護: ${state.privacy.screenProtect ? '有効' : '無効'} · 外部通信ブロック: ${state.privacy.anonMode ? '有効' : '無効'}。VPNや端末全体の保護機能ではありません。`;
+    window.dispatchEvent(new CustomEvent('nexus:privacy-change'));
+  }
+  function sync() {
+    state.privacy.autoNetwork = autoNetwork.checked;
+    state.privacy.screenProtect = screenProtect.checked;
+    state.privacy.anonMode = anonMode.checked;
     saveState(state);
-
-    if (state.privacy.autoNetwork) {
-      await fetchWeather(city, summary, note);
-      return;
-    }
-
-    const fallback = localWeather(city);
-    summary.textContent = `${fallback.temp}°C · ${fallback.condition}`;
-    note.textContent = `${fallback.note} · external weather fetch disabled by policy.`;
-  };
-
-  select.value = state.weather.city || 'tokyo';
-  select.addEventListener('change', updateWeather);
-  refreshButton?.addEventListener('click', updateWeather);
-  updateWeather();
+    render();
+  }
+  [autoNetwork, screenProtect, anonMode].forEach(input => input.addEventListener('change', sync));
+  function protect() {
+    if (state.privacy.screenProtect && wasAway) overlay.classList.remove('hidden');
+    wasAway = false;
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden && state.privacy.screenProtect) { wasAway = true; overlay.classList.remove('hidden'); } else if (!document.hidden) protect(); });
+  window.addEventListener('blur', () => { if (state.privacy.screenProtect) { wasAway = true; overlay.classList.remove('hidden'); } });
+  window.addEventListener('focus', protect);
+  render();
 }
